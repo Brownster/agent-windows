@@ -26,10 +26,10 @@ import (
 	"log/slog"
 
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/prometheus-community/windows_exporter/internal/headers/sysinfoapi"
-	"github.com/prometheus-community/windows_exporter/internal/mi"
-	"github.com/prometheus-community/windows_exporter/internal/pdh"
-	"github.com/prometheus-community/windows_exporter/internal/types"
+	"github.com/Brownster/agent-windows/internal/headers/sysinfoapi"
+	"github.com/Brownster/agent-windows/internal/mi"
+	"github.com/Brownster/agent-windows/internal/pdh"
+	"github.com/Brownster/agent-windows/internal/types"
 	"github.com/prometheus/client_golang/prometheus"
 )
 

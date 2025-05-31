@@ -53,7 +53,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/prometheus-community/windows_exporter/internal/headers/kernel32"
+	"github.com/Brownster/agent-windows/internal/headers/kernel32"
 	"golang.org/x/sys/windows"
 )
 

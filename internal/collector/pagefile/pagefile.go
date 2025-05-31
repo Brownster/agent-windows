@@ -24,10 +24,10 @@ import (
 	"strings"
 
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/prometheus-community/windows_exporter/internal/headers/psapi"
-	"github.com/prometheus-community/windows_exporter/internal/mi"
-	"github.com/prometheus-community/windows_exporter/internal/pdh"
-	"github.com/prometheus-community/windows_exporter/internal/types"
+	"github.com/Brownster/agent-windows/internal/headers/psapi"
+	"github.com/Brownster/agent-windows/internal/mi"
+	"github.com/Brownster/agent-windows/internal/pdh"
+	"github.com/Brownster/agent-windows/internal/types"
 	"github.com/prometheus/client_golang/prometheus"
 )
 

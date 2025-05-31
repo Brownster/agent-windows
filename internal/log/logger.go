@@ -24,7 +24,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/prometheus-community/windows_exporter/internal/log/eventlog"
+	"github.com/Brownster/agent-windows/internal/log/eventlog"
 	"github.com/prometheus/common/promslog"
 	wineventlog "golang.org/x/sys/windows/svc/eventlog"
 )

@@ -21,7 +21,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/prometheus-community/windows_exporter/internal/utils"
+	"github.com/Brownster/agent-windows/internal/utils"
 	"golang.org/x/sys/windows"
 )
 

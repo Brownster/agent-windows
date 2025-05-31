@@ -20,7 +20,7 @@ package pdh_test
 import (
 	"testing"
 
-	"github.com/prometheus-community/windows_exporter/internal/pdh"
+	"github.com/Brownster/agent-windows/internal/pdh"
 	"github.com/stretchr/testify/require"
 )
 

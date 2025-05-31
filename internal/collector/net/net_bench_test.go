@@ -21,8 +21,8 @@ import (
 	"testing"
 
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/prometheus-community/windows_exporter/internal/collector/net"
-	"github.com/prometheus-community/windows_exporter/internal/utils/testutils"
+	"github.com/Brownster/agent-windows/internal/collector/net"
+	"github.com/Brownster/agent-windows/internal/utils/testutils"
 )
 
 func BenchmarkCollector(b *testing.B) {

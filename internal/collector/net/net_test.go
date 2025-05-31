@@ -20,10 +20,82 @@ package net_test
 import (
 	"testing"
 
-	"github.com/prometheus-community/windows_exporter/internal/collector/net"
-	"github.com/prometheus-community/windows_exporter/internal/utils/testutils"
+	"github.com/Brownster/agent-windows/internal/collector/net"
+	"github.com/Brownster/agent-windows/internal/utils/testutils"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCollector(t *testing.T) {
 	testutils.TestCollector(t, net.New, nil)
+}
+
+func TestGetInterfaceType(t *testing.T) {
+	tests := []struct {
+		name         string
+		ifType       uint32
+		friendlyName string
+		expected     string
+	}{
+		{
+			name:         "ethernet by type",
+			ifType:       6, // IF_TYPE_ETHERNET_CSMACD
+			friendlyName: "Ethernet",
+			expected:     "ethernet",
+		},
+		{
+			name:         "wifi by friendly name",
+			ifType:       0, // unknown type
+			friendlyName: "Intel(R) Wi-Fi 6 AX200 160MHz",
+			expected:     "wifi",
+		},
+		{
+			name:         "ethernet by friendly name",
+			ifType:       0,
+			friendlyName: "Realtek PCIe GbE Family Controller",
+			expected:     "ethernet",
+		},
+		{
+			name:         "vpn by friendly name",
+			ifType:       0,
+			friendlyName: "TAP-Windows Adapter V9",
+			expected:     "vpn",
+		},
+		{
+			name:         "cellular by friendly name",
+			ifType:       0,
+			friendlyName: "Mobile Broadband Adapter",
+			expected:     "cellular",
+		},
+		{
+			name:         "wifi by wlan pattern",
+			ifType:       0,
+			friendlyName: "Qualcomm Atheros QCA9377 Wireless Network Adapter",
+			expected:     "wifi",
+		},
+		{
+			name:         "gigabit ethernet",
+			ifType:       0,
+			friendlyName: "Intel(R) Ethernet Connection I217-LM",
+			expected:     "ethernet",
+		},
+		{
+			name:         "virtual adapter",
+			ifType:       0,
+			friendlyName: "VMware Virtual Ethernet Adapter",
+			expected:     "vpn",
+		},
+		{
+			name:         "unknown interface",
+			ifType:       999,
+			friendlyName: "Unknown Adapter",
+			expected:     "unknown",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := net.GetInterfaceType(tt.ifType, tt.friendlyName)
+			require.Equal(t, tt.expected, result)
+		})
+	}
 }

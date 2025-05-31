@@ -1,0 +1,54 @@
+# Windows Agent Collector Configuration
+# Lightweight metrics collector for WebRTC voice quality troubleshooting
+
+# Push Gateway Configuration
+push_gateway:
+  # Required: URL of the Prometheus Push Gateway
+  url: "http://pushgateway.example.com:9091"
+  
+  # Optional: Basic authentication for push gateway
+  username: "monitoring_user"
+  password: "secret_password"
+  
+  # Optional: How often to push metrics (default: 30s)
+  interval: "30s"
+  
+  # Optional: Job name for grouping metrics (default: "windows_agent")
+  job_name: "windows_agent"
+
+# Agent Configuration
+agent:
+  # Required: Unique identifier for correlating with WebRTC stats
+  # This should match the agent ID used in your Chrome extension
+  id: "agent_001"
+
+# Collector Configuration
+collectors:
+  # List of collectors to enable
+  # Available: cpu, memory, net, pagefile
+  enabled: ["cpu", "memory", "net", "pagefile"]
+  
+  # Network collector specific settings
+  net:
+    # Optional: Include/exclude network interfaces by regex
+    nic_include: ".+"
+    nic_exclude: ""
+    
+    # Sub-collectors to enable
+    enabled: ["metrics", "nic_info"]
+
+# Process Configuration
+process:
+  # Optional: Process priority (normal, high, low, etc.)
+  priority: "normal"
+  
+  # Optional: Memory limit in bytes (50MB default for lightweight operation)
+  memory_limit: 50000000
+
+# Logging Configuration
+logging:
+  # Log level: debug, info, warn, error
+  level: "info"
+  
+  # Log output: stdout, eventlog (Windows Event Log)
+  output: "stdout"

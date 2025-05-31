@@ -22,11 +22,11 @@ import (
 	"time"
 
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/prometheus-community/windows_exporter/internal/mi"
+	"github.com/Brownster/agent-windows/internal/mi"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const DefaultCollectors = "cpu,cs,memory,logical_disk,physical_disk,net,os,service,system"
+const DefaultCollectors = "cpu,memory,net,pagefile"
 
 type Collection struct {
 	collectors    Map

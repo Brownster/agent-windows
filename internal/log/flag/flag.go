@@ -19,7 +19,7 @@ package flag
 
 import (
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/prometheus-community/windows_exporter/internal/log"
+	"github.com/Brownster/agent-windows/internal/log"
 	"github.com/prometheus/common/promslog"
 	"github.com/prometheus/common/promslog/flag"
 )

@@ -21,7 +21,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/prometheus-community/windows_exporter/internal/utils"
+	"github.com/Brownster/agent-windows/internal/utils"
 	"github.com/stretchr/testify/require"
 )
 

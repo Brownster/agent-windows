@@ -1,84 +1,85 @@
-GOOS    ?= windows
-VERSION ?= $(shell cat VERSION)
-DOCKER  ?= docker
+# Windows Agent Collector Makefile
 
-# DOCKER_REPO is the official image repository name at docker.io, quay.io.
-DOCKER_REPO       ?= prometheuscommunity
-DOCKER_IMAGE_NAME ?= windows-exporter
+.PHONY: build test clean lint help
 
-# ALL_DOCKER_REPOS is the list of repositories to push the image to. ghcr.io requires that org name be the same as the image repo name.
-ALL_DOCKER_REPOS  ?= docker.io/$(DOCKER_REPO) ghcr.io/prometheus-community # quay.io/$(DOCKER_REPO)
+# Build variables
+BINARY_NAME = windows-agent-collector
+BINARY_WINDOWS = $(BINARY_NAME).exe
+VERSION ?= $(shell git describe --tags --always --dirty)
+BUILD_DATE = $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+GIT_COMMIT = $(shell git rev-parse HEAD)
 
-# Image Variables for host process Container
-# Windows image build is heavily influenced by https://github.com/kubernetes/kubernetes/blob/master/cluster/images/etcd/Makefile
-OS                ?= ltsc2019
-ALL_OS            ?= ltsc2019 ltsc2022
-BASE_IMAGE        ?= mcr.microsoft.com/windows/nanoserver
+# Go build flags
+LDFLAGS = -ldflags "-X github.com/prometheus/common/version.Version=$(VERSION) \
+                   -X github.com/prometheus/common/version.Revision=$(GIT_COMMIT) \
+                   -X github.com/prometheus/common/version.BuildDate=$(BUILD_DATE) \
+                   -X github.com/prometheus/common/version.Branch=$(shell git rev-parse --abbrev-ref HEAD)"
 
-.PHONY: build
-build: generate windows_exporter.exe
+# Default target
+all: build
 
-windows_exporter.exe: pkg/**/*.go
-	promu build -v
+## build: Build the Windows agent collector
+build:
+	@echo "Building $(BINARY_WINDOWS)..."
+	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY_WINDOWS) ./cmd/agent
 
-.PHONY: generate
-generate:
-	go generate ./...
+## build-arm64: Build for Windows ARM64
+build-arm64:
+	@echo "Building $(BINARY_NAME)-arm64.exe..."
+	GOOS=windows GOARCH=arm64 go build $(LDFLAGS) -o $(BINARY_NAME)-arm64.exe ./cmd/agent
 
+## test: Run tests
 test:
-	go test -v ./...
+	@echo "Running tests..."
+	GOOS=windows GOARCH=amd64 go test -v ./...
 
-bench:
-	go test -v -bench='benchmarkcollector' ./internal/collectors/{cpu,logical_disk,physical_disk,logon,memory,net,printer,process,service,system,tcp,time}
+## test-compile: Compile tests without running them
+test-compile:
+	@echo "Compiling tests..."
+	GOOS=windows GOARCH=amd64 go test -c ./cmd/agent
+	GOOS=windows GOARCH=amd64 go test -c ./internal/collector/cpu
+	GOOS=windows GOARCH=amd64 go test -c ./internal/collector/memory
+	GOOS=windows GOARCH=amd64 go test -c ./internal/collector/net
+	GOOS=windows GOARCH=amd64 go test -c ./internal/collector/pagefile
 
+## clean: Clean build artifacts
+clean:
+	@echo "Cleaning build artifacts..."
+	rm -f $(BINARY_WINDOWS)
+	rm -f $(BINARY_NAME)-arm64.exe
+	rm -f *.test.exe
+	go clean
+
+## lint: Run linters
 lint:
-	golangci-lint -c .golangci.yaml run
+	@echo "Running linters..."
+	go fmt ./...
+	go vet ./...
 
-.PHONY: e2e-test
-e2e-test: windows_exporter.exe
-	powershell -NonInteractive -ExecutionPolicy Bypass -File .\tools\end-to-end-test.ps1
+## deps: Download dependencies
+deps:
+	@echo "Downloading dependencies..."
+	go mod download
+	go mod tidy
 
-.PHONY: promtool
-promtool: windows_exporter.exe
-	pwsh -NonInteractive -ExecutionPolicy Bypass -File .\tools\promtool.ps1
+## verify: Verify dependencies and build
+verify: deps lint test-compile
+	@echo "Verification complete"
 
-fmt:
-	gofmt -l -w -s .
+## package: Build for multiple architectures
+package: build build-arm64
+	@echo "Built packages:"
+	@ls -la *.exe
 
-crossbuild: generate
-	# The prometheus/golang-builder image for promu crossbuild doesn't exist
-	# on Windows, so for now, we'll just build twice
-	GOARCH=amd64 promu build --prefix=output/amd64
-	GOARCH=arm64 promu build --prefix=output/arm64
+## help: Show this help
+help:
+	@echo "Windows Agent Collector Build System"
+	@echo ""
+	@echo "Available targets:"
+	@sed -n 's/^##//p' $(MAKEFILE_LIST) | sort
 
-.PHONY: package
-package: crossbuild
-	powershell -NonInteractive -ExecutionPolicy Bypass -File .\installer\build.ps1 -PathToExecutable .\output\amd64\windows_exporter.exe -Version $(shell git describe --tags --abbrev=0)
-
-build-image: crossbuild
-	$(DOCKER) build --build-arg=BASE=$(BASE_IMAGE):$(OS) -f Dockerfile -t local/$(DOCKER_IMAGE_NAME):$(VERSION)-$(OS) .
-
-build-hostprocess:
-	$(DOCKER) buildx build --build-arg=BASE=mcr.microsoft.com/oss/kubernetes/windows-host-process-containers-base-image:v1.0.0 -f Dockerfile -t local/$(DOCKER_IMAGE_NAME):$(VERSION)-hostprocess .
-
-sub-build-%:
-	$(MAKE) OS=$* build-image
-
-build-all: crossbuild
-	@for docker_repo in ${DOCKER_REPO}; do \
-		echo $(DOCKER) buildx build -f Dockerfile -t $${docker_repo}/$(DOCKER_IMAGE_NAME):$(VERSION) .; \
-	done
-
-push:
-	@for docker_repo in ${DOCKER_REPO}; do \
-		echo $(DOCKER) buildx build --push -f Dockerfile -t $${docker_repo}/$(DOCKER_IMAGE_NAME):$(VERSION) .; \
-	done
-
-.PHONY: push-all
-push-all: build-all
-	$(MAKE) DOCKER_REPO="$(ALL_DOCKER_REPOS)" push
-
-# Mandatory target for container description sync action
-.PHONY: docker-repo-name
-docker-repo-name:
-	@echo "$(DOCKER_REPO)/$(DOCKER_IMAGE_NAME)"
+# Generate version info
+version:
+	@echo "Version: $(VERSION)"
+	@echo "Commit: $(GIT_COMMIT)"
+	@echo "Build Date: $(BUILD_DATE)"

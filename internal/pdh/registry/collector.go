@@ -22,8 +22,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/prometheus-community/windows_exporter/internal/mi"
-	"github.com/prometheus-community/windows_exporter/internal/pdh"
+	"github.com/Brownster/agent-windows/internal/mi"
+	"github.com/Brownster/agent-windows/internal/pdh"
 )
 
 type Collector struct {

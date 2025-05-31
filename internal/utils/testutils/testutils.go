@@ -27,10 +27,9 @@ import (
 	"time"
 
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/prometheus-community/windows_exporter/internal/collector/update"
-	"github.com/prometheus-community/windows_exporter/internal/mi"
-	"github.com/prometheus-community/windows_exporter/internal/pdh"
-	"github.com/prometheus-community/windows_exporter/pkg/collector"
+	"github.com/Brownster/agent-windows/internal/mi"
+	"github.com/Brownster/agent-windows/internal/pdh"
+	"github.com/Brownster/agent-windows/pkg/collector"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/windows"
@@ -48,7 +47,7 @@ func FuncBenchmarkCollector[C collector.Collector](b *testing.B, name string, co
 		f(app)
 	}
 
-	collectors := collector.New(map[string]collector.Collector{name: c})
+	collectors := collector.NewCollection(map[string]collector.Collector{name: c})
 	require.NoError(b, collectors.Build(b.Context(), logger))
 
 	metrics := make(chan prometheus.Metric)
@@ -106,7 +105,6 @@ func TestCollector[C collector.Collector, V interface{}](t *testing.T, fn func(*
 	case errors.Is(err, mi.MI_RESULT_INVALID_NAMESPACE),
 		errors.Is(err, pdh.NewPdhError(pdh.CstatusNoCounter)),
 		errors.Is(err, pdh.NewPdhError(pdh.CstatusNoObject)),
-		errors.Is(err, update.ErrUpdateServiceDisabled),
 		errors.Is(err, os.ErrNotExist):
 	default:
 		require.NoError(t, err)
@@ -122,8 +120,7 @@ func TestCollector[C collector.Collector, V interface{}](t *testing.T, fn func(*
 		errors.Is(err, pdh.ErrPerformanceCounterNotInitialized),
 		errors.Is(err, pdh.ErrNoData),
 		errors.Is(err, mi.MI_RESULT_INVALID_NAMESPACE),
-		errors.Is(err, mi.MI_RESULT_INVALID_QUERY),
-		errors.Is(err, update.ErrNoUpdates):
+		errors.Is(err, mi.MI_RESULT_INVALID_QUERY):
 		t.Skip("collector not supported on this system")
 	default:
 		require.NoError(t, err)

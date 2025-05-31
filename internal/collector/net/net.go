@@ -28,9 +28,9 @@ import (
 	"unsafe"
 
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/prometheus-community/windows_exporter/internal/mi"
-	"github.com/prometheus-community/windows_exporter/internal/pdh"
-	"github.com/prometheus-community/windows_exporter/internal/types"
+	"github.com/Brownster/agent-windows/internal/mi"
+	"github.com/Brownster/agent-windows/internal/pdh"
+	"github.com/Brownster/agent-windows/internal/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/sys/windows"
 )
@@ -266,8 +266,8 @@ func (c *Collector) Build(logger *slog.Logger, _ *mi.Session) error {
 	)
 	c.nicInfo = prometheus.NewDesc(
 		prometheus.BuildFQName(types.Namespace, Name, "nic_info"),
-		"A metric with a constant '1' value labeled with the network interface's general information.",
-		[]string{"nic", "friendly_name", "mac"},
+		"A metric with a constant '1' value labeled with the network interface's general information including type for WebRTC correlation.",
+		[]string{"nic", "friendly_name", "mac", "interface_type"},
 		nil,
 	)
 	c.routeInfo = prometheus.NewDesc(
@@ -434,6 +434,9 @@ func (c *Collector) collectNICInfo(ch chan<- prometheus.Metric) error {
 			nicAdapter.PhysicalAddress[5],
 		)
 
+		// Determine interface type for WebRTC correlation
+		ifType := GetInterfaceType(nicAdapter.IfType, friendlyName)
+
 		ch <- prometheus.MustNewConstMetric(
 			c.nicInfo,
 			prometheus.GaugeValue,
@@ -441,6 +444,7 @@ func (c *Collector) collectNICInfo(ch chan<- prometheus.Metric) error {
 			nicName,
 			friendlyName,
 			macAddress,
+			ifType,
 		)
 
 		for operState, labelValue := range operStatus {
@@ -539,4 +543,51 @@ func adapterAddresses() ([]*windows.IpAdapterAddresses, error) {
 	}
 
 	return addresses, nil
+}
+
+// GetInterfaceType determines the network interface type for WebRTC correlation
+// Uses Windows interface type constants and friendly name heuristics
+func GetInterfaceType(ifType uint32, friendlyName string) string {
+	// First check the interface type mapping
+	if netType, exists := interfaceType[ifType]; exists {
+		return netType
+	}
+	
+	// Fall back to friendly name heuristics for better detection
+	friendlyLower := strings.ToLower(friendlyName)
+	
+	// Common WiFi adapter name patterns
+	wifiPatterns := []string{"wi-fi", "wifi", "wireless", "802.11", "wlan", "qualcomm", "intel.*wireless", "broadcom.*wireless", "realtek.*wireless"}
+	for _, pattern := range wifiPatterns {
+		if strings.Contains(friendlyLower, pattern) {
+			return "wifi"
+		}
+	}
+	
+	// Common Ethernet adapter name patterns  
+	ethernetPatterns := []string{"ethernet", "gigabit", "fast ethernet", "realtek pcie", "intel.*ethernet", "broadcom.*ethernet"}
+	for _, pattern := range ethernetPatterns {
+		if strings.Contains(friendlyLower, pattern) {
+			return "ethernet"
+		}
+	}
+	
+	// VPN patterns
+	vpnPatterns := []string{"vpn", "tap", "tun", "virtual", "vmware", "virtualbox", "hyper-v"}
+	for _, pattern := range vpnPatterns {
+		if strings.Contains(friendlyLower, pattern) {
+			return "vpn"
+		}
+	}
+	
+	// Cellular/Mobile patterns
+	cellularPatterns := []string{"cellular", "mobile", "3g", "4g", "lte", "5g", "modem"}
+	for _, pattern := range cellularPatterns {
+		if strings.Contains(friendlyLower, pattern) {
+			return "cellular"
+		}
+	}
+	
+	// Default to unknown if we can't determine the type
+	return "unknown"
 }

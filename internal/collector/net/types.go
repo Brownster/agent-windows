@@ -34,6 +34,18 @@ var (
 		windows.IfOperStatusNotPresent:     "not present",
 		windows.IfOperStatusLowerLayerDown: "lower layer down",
 	}
+	// Network interface types for WebRTC correlation
+	// Maps Windows interface types to WebRTC-compatible connection types
+	interfaceType = map[uint32]string{
+		windows.IF_TYPE_ETHERNET_CSMACD:   "ethernet", // 6
+		windows.IF_TYPE_IEEE80211:         "wifi",     // 71
+		windows.IF_TYPE_PPP:               "cellular", // 23 
+		windows.IF_TYPE_TUNNEL:            "vpn",      // 131
+		windows.IF_TYPE_SOFTWARE_LOOPBACK: "loopback", // 24
+		// Additional interface types for better detection
+		144: "ethernet", // IF_TYPE_GPON
+		237: "wifi",     // IF_TYPE_IEEE80211_PRISM
+	}
 )
 
 type perfDataCounterValues struct {

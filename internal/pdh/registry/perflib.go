@@ -137,7 +137,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/prometheus-community/windows_exporter/internal/pdh"
+	"github.com/Brownster/agent-windows/internal/pdh"
 	"golang.org/x/sys/windows"
 )
 

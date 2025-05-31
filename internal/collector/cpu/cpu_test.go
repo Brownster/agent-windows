@@ -20,8 +20,8 @@ package cpu_test
 import (
 	"testing"
 
-	"github.com/prometheus-community/windows_exporter/internal/collector/cpu"
-	"github.com/prometheus-community/windows_exporter/internal/utils/testutils"
+	"github.com/Brownster/agent-windows/internal/collector/cpu"
+	"github.com/Brownster/agent-windows/internal/utils/testutils"
 )
 
 func BenchmarkCollector(b *testing.B) {

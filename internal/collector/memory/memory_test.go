@@ -20,8 +20,8 @@ package memory_test
 import (
 	"testing"
 
-	"github.com/prometheus-community/windows_exporter/internal/collector/memory"
-	"github.com/prometheus-community/windows_exporter/internal/utils/testutils"
+	"github.com/Brownster/agent-windows/internal/collector/memory"
+	"github.com/Brownster/agent-windows/internal/utils/testutils"
 )
 
 func BenchmarkCollector(b *testing.B) {

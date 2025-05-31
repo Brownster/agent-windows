@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/prometheus-community/windows_exporter/internal/mi"
+	"github.com/Brownster/agent-windows/internal/mi"
 	"github.com/stretchr/testify/require"
 )
 

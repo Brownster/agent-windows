@@ -40,9 +40,7 @@ func (c *Collection) NewHandler(maxScrapeDuration time.Duration, logger *slog.Lo
 	collection := c
 
 	if len(collectors) != 0 {
-		var err error
-
-		collection, err = c.WithCollectors(collectors)
+		err := collection.Enable(collectors)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create handler with collectors: %w", err)
 		}

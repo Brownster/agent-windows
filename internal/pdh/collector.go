@@ -27,8 +27,8 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/prometheus-community/windows_exporter/internal/mi"
-	"github.com/prometheus-community/windows_exporter/internal/osversion"
+	"github.com/Brownster/agent-windows/internal/mi"
+	"github.com/Brownster/agent-windows/internal/osversion"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/sys/windows"
 )
@@ -411,7 +411,7 @@ func (c *Collector) collectWorkerRaw() {
 						}
 
 						// This is a workaround for the issue with the elapsed time counter type.
-						// Source: https://github.com/prometheus-community/windows_exporter/pull/335/files#diff-d5d2528f559ba2648c2866aec34b1eaa5c094dedb52bd0ff22aa5eb83226bd8dR76-R83
+						// Source: https://github.com/Brownster/agent-windows/pull/335/files#diff-d5d2528f559ba2648c2866aec34b1eaa5c094dedb52bd0ff22aa5eb83226bd8dR76-R83
 						// Ref: https://learn.microsoft.com/en-us/windows/win32/perfctrs/calculating-counter-values
 						switch counter.Type {
 						case PERF_ELAPSED_TIME:

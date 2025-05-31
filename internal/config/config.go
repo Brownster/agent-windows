@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/alecthomas/kingpin/v2"
-	"github.com/prometheus-community/windows_exporter/pkg/collector"
+	"github.com/Brownster/agent-windows/pkg/collector"
 	"gopkg.in/yaml.v3"
 )
 
