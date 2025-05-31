@@ -1,244 +1,101 @@
-name: Releases
+name: Release
 
-# Trigger on releases.
 on:
   push:
-    branches:
-      - master
-  pull_request:
+    tags:
+      - 'v*'
   workflow_dispatch:
-  release:
-    types:
-      - published
-      - edited
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v1.0.0)'
+        required: true
+        type: string
 
 permissions:
   contents: write
-  packages: write
-
-env:
-  VERSION_PROMU: '0.17.0'
 
 jobs:
   build:
-    runs-on: windows-2025
-    environment: build
+    name: Build Windows Binary
+    runs-on: windows-latest
+    
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: '0'
-
-      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
-        with:
-          go-version-file: 'go.mod'
-
-      - name: Install WiX
-        run: |
-          dotnet tool install --global wix --version 5.0.2
-
-      - name: Install WiX extensions
-        run: |
-          wix extension add -g WixToolset.Util.wixext/5.0.2
-          wix extension add -g WixToolset.Ui.wixext/5.0.2
-          wix extension add -g WixToolset.Firewall.wixext/5.0.2
-
-      - name: Install Build deps
-        run: |
-          Invoke-WebRequest -Uri https://github.com/prometheus/promu/releases/download/v$($Env:VERSION_PROMU)/promu-$($Env:VERSION_PROMU).windows-amd64.zip -OutFile promu-$($Env:VERSION_PROMU).windows-amd64.zip
-          Expand-Archive -Path promu-$($Env:VERSION_PROMU).windows-amd64.zip -DestinationPath .
-          Copy-Item -Path promu-$($Env:VERSION_PROMU).windows-amd64\promu.exe -Destination "$(go env GOPATH)\bin"
-
-          # GOPATH\bin dir must be added to PATH else the `promu` commands won't be found
-          echo "$(go env GOPATH)\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-      - name: Build
-        run: |
-          $ErrorActionPreference = "Stop"
-
-          $Version = git describe --tags --always
-          $Version = $Version -replace 'v', ''
-          # '+' symbols are invalid characters in image tags
-          $Version = $Version -replace '\+', '_'
-          $Version | Set-Content VERSION -PassThru
-
-          make build-all
-
-          # GH requires all files to have different names, so add version/arch to differentiate
-          foreach($Arch in "amd64", "arm64") {
-            Move-Item output\$Arch\windows_exporter.exe output\windows_exporter-$Version-$Arch.exe
-          }
-
-          Get-ChildItem -Path output
-
-      - name: Sign build artifacts
-        if: ${{ (github.event_name != 'pull_request' && github.repository == 'prometheus-community/windows_exporter') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == 'prometheus-community/windows_exporter') }}
-        run: |
-          $ErrorActionPreference = "Stop"
-          $Version = Get-Content VERSION
-
-          $b64      = $env:CODE_SIGN_KEY
-          $filename = 'windows_exporter_CodeSign.pfx'
-
-          $bytes = [Convert]::FromBase64String($b64)
-          [IO.File]::WriteAllBytes($filename, $bytes)
-
-          $basePath = "C:\Program Files (x86)\Windows Kits\10\bin"
-          $latestSigntool = Get-ChildItem -Path $basePath -Directory |
-          Where-Object { $_.Name -match "^\d+\.\d+\.\d+\.\d+$" } |
-          Sort-Object { [Version]$_.Name } -Descending |
-          Select-Object -First 1 |
-          ForEach-Object { Join-Path $_.FullName "x64\signtool.exe" }
-
-          if (Test-Path $latestSigntool) {
-            Write-Output $latestSigntool
-          } else {
-            Write-Output "signtool.exe not found"
-          }
-
-          foreach($Arch in "amd64", "arm64") {
-            & $latestSigntool sign /v /tr "http://timestamp.digicert.com" /d "Prometheus exporter for Windows machines" /td SHA256 /fd SHA256 /a /f "windows_exporter_CodeSign.pfx" /p $env:CODE_SIGN_PASSWORD "output\windows_exporter-$Version-$Arch.exe"
-          }
-
-          rm windows_exporter_CodeSign.pfx
-        env:
-          CODE_SIGN_KEY: ${{ secrets.CODE_SIGN_KEY }}
-          CODE_SIGN_PASSWORD: ${{ secrets.CODE_SIGN_PASSWORD }}
-
-      - name: Build Release Artifacts
-        run: |
-          $ErrorActionPreference = "Stop"
-          $Version = Get-Content VERSION
-
-          foreach($Arch in "amd64", "arm64") {
-            Write-Host "Building windows_exporter $Version msi for $Arch"
-            .\installer\build.ps1 -PathToExecutable .\output\windows_exporter-$Version-$Arch.exe -Version $Version -Arch "$Arch"
-          }
-
-          Move-Item installer\*.msi output\
-          Get-ChildItem -Path output\ g
-
-      - name: Sign installer artifacts
-        if: ${{ (github.event_name != 'pull_request' && github.repository == 'prometheus-community/windows_exporter') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == 'prometheus-community/windows_exporter') }}
-        run: |
-          $ErrorActionPreference = "Stop"
-          $Version = Get-Content VERSION
-
-          $b64      = $env:CODE_SIGN_KEY
-          $filename = 'windows_exporter_CodeSign.pfx'
-
-          $bytes = [Convert]::FromBase64String($b64)
-          [IO.File]::WriteAllBytes($filename, $bytes)
-
-          $basePath = "C:\Program Files (x86)\Windows Kits\10\bin"
-          $latestSigntool = Get-ChildItem -Path $basePath -Directory |
-          Where-Object { $_.Name -match "^\d+\.\d+\.\d+\.\d+$" } |
-          Sort-Object { [Version]$_.Name } -Descending |
-          Select-Object -First 1 |
-          ForEach-Object { Join-Path $_.FullName "x64\signtool.exe" }
-
-          if (Test-Path $latestSigntool) {
-            Write-Output $latestSigntool
-          } else {
-            Write-Output "signtool.exe not found"
-          }
-
-          foreach($Arch in "amd64", "arm64") {
-            & $latestSigntool sign /v /tr "http://timestamp.digicert.com" /d "Prometheus exporter for Windows machines" /td SHA256 /fd SHA256 /a /f "windows_exporter_CodeSign.pfx" /p $env:CODE_SIGN_PASSWORD "output\windows_exporter-$Version-$Arch.msi"
-          }
-
-          rm windows_exporter_CodeSign.pfx
-        env:
-          CODE_SIGN_KEY: ${{ secrets.CODE_SIGN_KEY }}
-          CODE_SIGN_PASSWORD: ${{ secrets.CODE_SIGN_PASSWORD }}
-
-      - name: Generate checksums
-        run: |
-          promu checksum output
-          cat output\sha256sums.txt
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: windows_exporter_binaries
-          path: |
-            output\windows_exporter-*.exe
-            output\windows_exporter-*.msi
-
-      - name: Release
-        if: startsWith(github.ref, 'refs/tags/')
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          $TagName = $env:GITHUB_REF -replace 'refs/tags/', ''
-          Get-ChildItem -Path output\* -Include @('windows_exporter*.msi', 'windows_exporter*.exe', 'sha256sums.txt') | Foreach-Object {gh release upload $TagName $_}
-  docker:
-    name: Build docker images
-    runs-on: ubuntu-latest
-    needs:
-      - build
-    env:
-      DOCKER_BUILD_SUMMARY: false
-      DOCKER_BUILD_RECORD_UPLOAD: false
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: '0'
-
-      - name: Download Artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: windows_exporter_binaries
-
-      - name: Login to Docker Hub
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
-        with:
-          username: ${{ secrets.DOCKER_HUB_LOGIN }}
-          password: ${{ secrets.DOCKER_HUB_PASSWORD }}
-
-      - name: Login to quay.io
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
-        with:
-          registry: quay.io
-          username: ${{ secrets.QUAY_IO_LOGIN }}
-          password: ${{ secrets.QUAY_IO_PASSWORD }}
-
-      - name: Login to GitHub container registry
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
-        with:
-          images: |
-            ghcr.io/prometheus-community/windows-exporter
-            docker.io/prometheuscommunity/windows-exporter
-            quay.io/prometheuscommunity/windows-exporter
-          tags: |
-            type=semver,pattern={{version}}
-            type=ref,event=branch
-            type=ref,event=pr
-          labels: |
-            org.opencontainers.image.title=windows_exporter
-            org.opencontainers.image.description=A Prometheus exporter for Windows machines.
-            org.opencontainers.image.vendor=The Prometheus Community
-            org.opencontainers.image.licenses=MIT
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
-
-      - name: Build and push
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
-        with:
-          context: .
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: windows/amd64
-          annotations: ${{ steps.meta.outputs.labels }}
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+        
+    - name: Get dependencies
+      run: go mod download
+      
+    - name: Run tests
+      run: go test ./...
+      
+    - name: Build Windows binary
+      run: |
+        $env:GOOS="windows"
+        $env:GOARCH="amd64" 
+        $env:CGO_ENABLED="0"
+        go build -ldflags="-s -w" -o windows-agent-collector.exe ./cmd/agent
+        
+    - name: Create release directory
+      run: |
+        mkdir release
+        Copy-Item windows-agent-collector.exe release/
+        Copy-Item config-example.yaml release/
+        Copy-Item README.md release/
+        Copy-Item LICENSE release/
+        
+    - name: Create ZIP archive
+      run: |
+        Compress-Archive -Path release/* -DestinationPath windows-agent-collector-windows-amd64.zip
+        
+    - name: Get release tag
+      id: get_tag
+      shell: bash
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+        else
+          echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.get_tag.outputs.tag }}
+        name: Windows Agent Collector ${{ steps.get_tag.outputs.tag }}
+        body: |
+          ## Windows Agent Collector ${{ steps.get_tag.outputs.tag }}
+          
+          A lightweight Windows metrics collector for WebRTC voice quality troubleshooting.
+          
+          ### 📦 Downloads
+          - **windows-agent-collector-windows-amd64.zip** - Complete package with executable, config example, and documentation
+          - **windows-agent-collector.exe** - Standalone Windows executable
+          
+          ### 🚀 Quick Start
+          ```powershell
+          # Extract the ZIP file and run:
+          .\windows-agent-collector.exe --agent-id=agent_001 --push.gateway-url=http://pushgateway:9091
+          
+          # Install as Windows service:
+          .\windows-agent-collector.exe --agent-id=agent_001 --push.gateway-url=http://pushgateway:9091 install
+          ```
+          
+          ### 📋 Requirements
+          - Windows 10/11 or Windows Server 2016+
+          - Network access to your Prometheus Push Gateway
+          
+          ### 🔗 WebRTC Integration
+          This agent includes enhanced network interface detection and agent_id labeling for correlation with WebRTC statistics collected via Chrome extension.
+          
+          See the [README](https://github.com/Brownster/agent-windows/blob/master/README.md) for complete documentation.
+        files: |
+          windows-agent-collector-windows-amd64.zip
+          windows-agent-collector.exe
+        draft: false
+        prerelease: false
