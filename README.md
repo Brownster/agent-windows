@@ -2,6 +2,8 @@
 
 A lightweight Windows metrics collector specifically designed for WebRTC voice quality troubleshooting. This agent pushes metrics to a Prometheus Push Gateway and includes enhanced network interface detection for correlation with WebRTC statistics.
 
+> **🔗 Sister Application**: Pairs with the [WebRTC Chrome Extension](https://github.com/Brownster/agent-webrtc) for comprehensive voice quality monitoring. Both applications use the same `agent_id` for seamless correlation in Grafana dashboards.
+
 ## Features
 
 - **🚀 Lightweight**: ~80% smaller than full windows_exporter
@@ -74,16 +76,38 @@ collectors:
   enabled: ["cpu", "memory", "net", "pagefile"]
 ```
 
-## WebRTC Correlation
+## WebRTC Integration & Correlation
 
-The agent includes an `agent_id` label on all metrics, enabling correlation with WebRTC statistics:
+### 🌐 Chrome Extension Integration
+
+This Windows agent works seamlessly with the **[WebRTC Chrome Extension](https://github.com/Brownster/agent-webrtc)** to provide comprehensive voice quality monitoring:
+
+- **Windows Agent**: Collects system metrics (CPU, memory, network interface types)
+- **Chrome Extension**: Captures WebRTC statistics (audio quality, packet loss, jitter, bitrates)
+- **Shared Agent ID**: Both use the same `agent_id` for correlation
+
+### 📊 Grafana Dashboard Correlation
+
+In Grafana, you can create unified dashboards combining metrics from both sources:
 
 ```prometheus
-# Example metrics with agent_id label
-windows_cpu_time_total{agent_id="agent_001",mode="idle"} 12345
-windows_memory_available_bytes{agent_id="agent_001"} 8589934592
-windows_net_nic_info{agent_id="agent_001",nic="WiFi",interface_type="wifi"} 1
+# Windows system metrics
+windows_cpu_time_total{agent_id="agent_001",mode="idle"}
+windows_memory_available_bytes{agent_id="agent_001"}
+windows_net_nic_info{agent_id="agent_001",nic="WiFi",interface_type="wifi"}
+
+# WebRTC metrics (from Chrome extension)
+webrtc_audio_packets_lost{agent_id="agent_001"}
+webrtc_audio_jitter{agent_id="agent_001"}
+webrtc_connection_state{agent_id="agent_001",interface_type="wifi"}
 ```
+
+### 🔍 Troubleshooting Example
+
+Correlate network issues with call quality:
+- High CPU usage + packet loss = resource contention
+- WiFi interface + high jitter = wireless connectivity issues
+- Memory pressure + audio dropouts = system performance impact
 
 ## Network Interface Types
 
@@ -94,6 +118,20 @@ Enhanced detection for WebRTC compatibility:
 - `vpn` - VPN tunnel interfaces
 - `loopback` - Loopback interfaces
 - `unknown` - Unidentified interface types
+
+## Complete Monitoring Setup
+
+### 1. Install Windows Agent
+```powershell
+# Download from releases or build from source
+.\windows-agent-collector.exe --agent-id=agent_001 --push.gateway-url=http://pushgateway:9091 install
+```
+
+### 2. Install Chrome Extension
+Install the [WebRTC Chrome Extension](https://github.com/Brownster/agent-webrtc) and configure it with the same `agent_id=agent_001`.
+
+### 3. Configure Grafana
+Create dashboards that query both metric sources using the shared `agent_id` label for unified troubleshooting views.
 
 ## Building from Source
 
@@ -132,6 +170,11 @@ This agent is purpose-built for WebRTC troubleshooting:
 
 Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
 
+## Related Projects
+
+- **[WebRTC Chrome Extension](https://github.com/Brownster/agent-webrtc)** - Sister application for capturing WebRTC statistics
+- **[Original windows_exporter](https://github.com/prometheus-community/windows_exporter)** - Full-featured Windows metrics exporter
+
 ---
 
-*Built specifically for WebRTC voice quality monitoring and troubleshooting scenarios.*
+*Built specifically for WebRTC voice quality monitoring and troubleshooting scenarios. Use together with the WebRTC Chrome Extension for comprehensive insights.*

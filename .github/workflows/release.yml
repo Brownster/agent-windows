@@ -91,7 +91,9 @@ jobs:
           - Network access to your Prometheus Push Gateway
           
           ### 🔗 WebRTC Integration
-          This agent includes enhanced network interface detection and agent_id labeling for correlation with WebRTC statistics collected via Chrome extension.
+          This agent includes enhanced network interface detection and agent_id labeling for correlation with WebRTC statistics collected via the sister [WebRTC Chrome Extension](https://github.com/Brownster/agent-webrtc).
+          
+          **Complete Setup**: Install both this Windows agent and the Chrome extension with the same `agent_id` to create unified Grafana dashboards correlating system performance with WebRTC call quality.
           
           See the [README](https://github.com/Brownster/agent-windows/blob/master/README.md) for complete documentation.
         files: |
