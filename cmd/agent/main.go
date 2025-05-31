@@ -286,16 +286,20 @@ func pushMetrics(ctx context.Context, logger *slog.Logger, config PushConfig, re
 	duration := time.Since(start)
 
 	if err != nil {
-		logger.LogAttrs(ctx, slog.LevelError, "Failed to push metrics",
-			slog.Any("err", err),
-			slog.Duration("duration", duration),
-		)
+		if logger != nil {
+			logger.LogAttrs(ctx, slog.LevelError, "Failed to push metrics",
+				slog.Any("err", err),
+				slog.Duration("duration", duration),
+			)
+		}
 		return err
 	}
 
-	logger.LogAttrs(ctx, slog.LevelDebug, "Successfully pushed metrics",
-		slog.Duration("duration", duration),
-	)
+	if logger != nil {
+		logger.LogAttrs(ctx, slog.LevelDebug, "Successfully pushed metrics",
+			slog.Duration("duration", duration),
+		)
+	}
 
 	return nil
 }
@@ -383,6 +387,11 @@ func setPriorityWindows(ctx context.Context, logger *slog.Logger, pid int, prior
 func expandEnabledCollectors(enabled string) []string {
 	// For our lightweight agent, we only support specific collectors
 	supportedCollectors := []string{"cpu", "memory", "net", "pagefile"}
+
+	// Handle empty input
+	if enabled == "" {
+		return []string{}
+	}
 
 	expanded := strings.ReplaceAll(enabled, "[defaults]", "cpu,memory,net,pagefile")
 	requested := slices.Compact(strings.Split(expanded, ","))

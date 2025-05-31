@@ -556,6 +556,14 @@ func GetInterfaceType(ifType uint32, friendlyName string) string {
 	// Fall back to friendly name heuristics for better detection
 	friendlyLower := strings.ToLower(friendlyName)
 	
+	// Check VPN patterns first (before ethernet) to properly classify virtual adapters
+	vpnPatterns := []string{"vpn", "tap", "tun", "virtual", "vmware", "virtualbox", "hyper-v"}
+	for _, pattern := range vpnPatterns {
+		if strings.Contains(friendlyLower, pattern) {
+			return "vpn"
+		}
+	}
+	
 	// Common WiFi adapter name patterns
 	wifiPatterns := []string{"wi-fi", "wifi", "wireless", "802.11", "wlan", "qualcomm", "intel.*wireless", "broadcom.*wireless", "realtek.*wireless"}
 	for _, pattern := range wifiPatterns {
@@ -569,14 +577,6 @@ func GetInterfaceType(ifType uint32, friendlyName string) string {
 	for _, pattern := range ethernetPatterns {
 		if strings.Contains(friendlyLower, pattern) {
 			return "ethernet"
-		}
-	}
-	
-	// VPN patterns
-	vpnPatterns := []string{"vpn", "tap", "tun", "virtual", "vmware", "virtualbox", "hyper-v"}
-	for _, pattern := range vpnPatterns {
-		if strings.Contains(friendlyLower, pattern) {
-			return "vpn"
 		}
 	}
 	

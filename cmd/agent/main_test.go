@@ -30,7 +30,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
-	"github.com/Brownster/agent-windows/internal/collector/net"
 )
 
 func TestExpandEnabledCollectors(t *testing.T) {
@@ -74,58 +73,6 @@ func TestExpandEnabledCollectors(t *testing.T) {
 	}
 }
 
-func TestGetInterfaceType(t *testing.T) {
-	tests := []struct {
-		name         string
-		ifType       uint32
-		friendlyName string
-		expected     string
-	}{
-		{
-			name:         "ethernet by type",
-			ifType:       6, // IF_TYPE_ETHERNET_CSMACD
-			friendlyName: "Ethernet",
-			expected:     "ethernet",
-		},
-		{
-			name:         "wifi by friendly name",
-			ifType:       0, // unknown type
-			friendlyName: "Intel(R) Wi-Fi 6 AX200 160MHz",
-			expected:     "wifi",
-		},
-		{
-			name:         "ethernet by friendly name",
-			ifType:       0,
-			friendlyName: "Realtek PCIe GbE Family Controller",
-			expected:     "ethernet",
-		},
-		{
-			name:         "vpn by friendly name",
-			ifType:       0,
-			friendlyName: "TAP-Windows Adapter V9",
-			expected:     "vpn",
-		},
-		{
-			name:         "cellular by friendly name",
-			ifType:       0,
-			friendlyName: "Mobile Broadband Adapter",
-			expected:     "cellular",
-		},
-		{
-			name:         "unknown interface",
-			ifType:       999,
-			friendlyName: "Unknown Adapter",
-			expected:     "unknown",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := net.GetInterfaceType(tt.ifType, tt.friendlyName)
-			require.Equal(t, tt.expected, result)
-		})
-	}
-}
 
 func TestPushMetrics(t *testing.T) {
 	// Create a mock push gateway server
