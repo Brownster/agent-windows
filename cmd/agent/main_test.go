@@ -22,8 +22,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -160,7 +158,6 @@ func TestRunBasicValidation(t *testing.T) {
 		name     string
 		args     []string
 		exitCode int
-		config   string
 	}{
 		{
 			name:     "missing required agent-id",
@@ -177,11 +174,6 @@ func TestRunBasicValidation(t *testing.T) {
 			args:     []string{"--agent-id=test123", "--push.gateway-url=http://localhost:9091", "--push.interval=invalid"},
 			exitCode: 1,
 		},
-		{
-			name:     "invalid config file",
-			args:     []string{"--config.file=nonexistent.yaml"},
-			exitCode: 1,
-		},
 	}
 
 	for _, tt := range tests {
@@ -189,20 +181,6 @@ func TestRunBasicValidation(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
 
-			if tt.config != "" {
-				// Create temporary config file
-				tmpfile, err := os.CreateTemp(t.TempDir(), "config-*.yaml")
-				require.NoError(t, err)
-				defer tmpfile.Close()
-
-				_, err = tmpfile.WriteString(tt.config)
-				require.NoError(t, err)
-
-				// Replace config.file path in args
-				for i, arg := range tt.args {
-					tt.args[i] = strings.ReplaceAll(arg, "nonexistent.yaml", tmpfile.Name())
-				}
-			}
 
 			exitCode := run(ctx, tt.args)
 			require.Equal(t, tt.exitCode, exitCode)

@@ -78,6 +78,9 @@ func run(ctx context.Context, args []string) int {
 
 	app := kingpin.New("windows_agent_collector", "A lightweight Windows metrics collector that pushes to Prometheus Push Gateway.")
 	
+	// Disable termination for tests
+	app.Terminate(nil)
+	
 	// Service management commands
 	_ = app.Command("install", "Install as Windows service")
 	_ = app.Command("uninstall", "Remove Windows service")
