@@ -83,11 +83,6 @@ func run(ctx context.Context, args []string) int {
 	_ = app.Command("uninstall", "Remove Windows service")
 
 	var (
-		configFile = app.Flag(
-			"config.file",
-			"YAML configuration file to use. Values set in this file will be overridden by CLI flags.",
-		).String()
-
 		// Push Gateway Configuration
 		pushGatewayURL = app.Flag(
 			"push.gateway-url",
@@ -174,7 +169,7 @@ func run(ctx context.Context, args []string) int {
 	}
 
 	// Parse command line arguments to get the selected command
-	parseContext, err := app.Parse(args)
+	command, err := app.Parse(args)
 	if err != nil {
 		//nolint:sloglint // we do not have a logger yet
 		slog.LogAttrs(ctx, slog.LevelError, "Failed to parse flags",
@@ -184,13 +179,11 @@ func run(ctx context.Context, args []string) int {
 	}
 
 	// Handle service management commands
-	if parseContext.SelectedCommand != nil {
-		switch parseContext.SelectedCommand.Model().Name {
-		case "install":
-			return handleServiceInstall(ctx, args)
-		case "uninstall":
-			return handleServiceUninstall(ctx)
-		}
+	switch command {
+	case "install":
+		return handleServiceInstall(ctx, args)
+	case "uninstall":
+		return handleServiceUninstall(ctx)
 	}
 
 	// Validate required flags for normal operation

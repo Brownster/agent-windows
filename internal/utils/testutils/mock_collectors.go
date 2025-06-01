@@ -3,11 +3,13 @@
 package testutils
 
 import (
-	"context"
+	"log/slog"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	dto "github.com/prometheus/client_model/go"
+	"github.com/Brownster/agent-windows/internal/mi"
 	"github.com/Brownster/agent-windows/pkg/collector"
 )
 
@@ -44,7 +46,7 @@ func NewMockCollector(name string) *MockCollector {
 
 // Collect implements the collector.Collector interface for testing.
 // It returns the configured metrics or error, and tracks call counts.
-func (m *MockCollector) Collect(ctx context.Context, ch chan<- prometheus.Metric) error {
+func (m *MockCollector) Collect(ch chan<- prometheus.Metric) error {
 	m.CollectCallCount++
 	
 	// Simulate collection delay if configured
@@ -59,11 +61,7 @@ func (m *MockCollector) Collect(ctx context.Context, ch chan<- prometheus.Metric
 	
 	// Send configured metrics
 	for _, metric := range m.Metrics {
-		select {
-		case ch <- metric:
-		case <-ctx.Done():
-			return ctx.Err()
-		}
+		ch <- metric
 	}
 	
 	return nil
@@ -72,6 +70,12 @@ func (m *MockCollector) Collect(ctx context.Context, ch chan<- prometheus.Metric
 // GetName returns the collector name for identification.
 func (m *MockCollector) GetName() string {
 	return m.Name
+}
+
+// Build implements the collector.Collector interface.
+// For the mock, this is a no-op.
+func (m *MockCollector) Build(logger *slog.Logger, miSession *mi.Session) error {
+	return nil
 }
 
 // Close implements the collector.Collector interface.
@@ -119,7 +123,7 @@ func CreateTestMetric(name, help string, value float64, labels ...string) promet
 // for testing push gateway integration.
 type MockRegistry struct {
 	// Metrics to return when Gather() is called
-	MetricFamilies []*prometheus.MetricFamily
+	MetricFamilies []*dto.MetricFamily
 	
 	// Error to return when Gather() is called
 	GatherError error
@@ -131,12 +135,12 @@ type MockRegistry struct {
 // NewMockRegistry creates a new mock registry.
 func NewMockRegistry() *MockRegistry {
 	return &MockRegistry{
-		MetricFamilies: []*prometheus.MetricFamily{},
+		MetricFamilies: []*dto.MetricFamily{},
 	}
 }
 
 // Gather implements the prometheus.Gatherer interface for testing.
-func (m *MockRegistry) Gather() ([]*prometheus.MetricFamily, error) {
+func (m *MockRegistry) Gather() ([]*dto.MetricFamily, error) {
 	m.GatherCallCount++
 	
 	if m.GatherError != nil {
@@ -147,7 +151,7 @@ func (m *MockRegistry) Gather() ([]*prometheus.MetricFamily, error) {
 }
 
 // WithMetricFamilies configures the mock to return specific metric families.
-func (m *MockRegistry) WithMetricFamilies(families ...*prometheus.MetricFamily) *MockRegistry {
+func (m *MockRegistry) WithMetricFamilies(families ...*dto.MetricFamily) *MockRegistry {
 	m.MetricFamilies = families
 	return m
 }
@@ -192,12 +196,11 @@ func (ts *CollectorTestSuite) RunBasicTests(t TestingT) {
 		collector := ts.NewCollector()
 		defer collector.Close()
 		
-		ctx := context.Background()
 		ch := make(chan prometheus.Metric, 100)
 		
 		go func() {
 			defer close(ch)
-			err := collector.Collect(ctx, ch)
+			err := collector.Collect(ch)
 			if err != nil {
 				t.Errorf("Collect() failed: %v", err)
 			}
@@ -213,19 +216,17 @@ func (ts *CollectorTestSuite) RunBasicTests(t TestingT) {
 		}
 	})
 	
-	// Test 3: Context cancellation
-	t.Run("context_cancellation", func(t TestingT) {
+	// Test 3: Error handling
+	t.Run("error_handling", func(t TestingT) {
 		collector := ts.NewCollector()
 		defer collector.Close()
 		
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel() // Cancel immediately
-		
 		ch := make(chan prometheus.Metric, 100)
-		err := collector.Collect(ctx, ch)
+		err := collector.Collect(ch)
 		
-		if err != context.Canceled {
-			t.Errorf("Expected context.Canceled, got %v", err)
+		// Should not error in normal operation
+		if err != nil {
+			t.Errorf("Unexpected error: %v", err)
 		}
 	})
 	
@@ -234,15 +235,13 @@ func (ts *CollectorTestSuite) RunBasicTests(t TestingT) {
 		collector := ts.NewCollector()
 		defer collector.Close()
 		
-		ctx := context.Background()
-		
 		// Collect metrics multiple times to ensure consistency
 		for i := 0; i < 3; i++ {
 			ch := make(chan prometheus.Metric, 100)
 			
 			go func() {
 				defer close(ch)
-				err := collector.Collect(ctx, ch)
+				err := collector.Collect(ch)
 				if err != nil {
 					t.Errorf("Collect() iteration %d failed: %v", i, err)
 				}
@@ -259,12 +258,11 @@ func (ts *CollectorTestSuite) RunBasicTests(t TestingT) {
 		collector := ts.NewCollector()
 		defer collector.Close()
 		
-		ctx := context.Background()
 		ch := make(chan prometheus.Metric, 100)
 		
 		go func() {
 			defer close(ch)
-			collector.Collect(ctx, ch)
+			collector.Collect(ch)
 		}()
 		
 		foundMetrics := make(map[string]bool)
@@ -305,17 +303,15 @@ func BenchmarkCollector(b BenchmarkingT, newCollector func() collector.Collector
 	collector := newCollector()
 	defer collector.Close()
 	
-	ctx := context.Background()
-	
 	b.ResetTimer()
 	b.ReportAllocs()
 	
-	for i := 0; i < b.N; i++ {
+	for i := 0; i < b.N(); i++ {
 		ch := make(chan prometheus.Metric, 100)
 		
 		go func() {
 			defer close(ch)
-			err := collector.Collect(ctx, ch)
+			err := collector.Collect(ch)
 			if err != nil {
 				b.Error(err)
 			}
