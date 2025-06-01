@@ -16,17 +16,83 @@ A lightweight Windows metrics collector specifically designed for WebRTC voice q
 ## Quick Start
 
 ### Download and Install
+Download the latest release from [GitHub Releases](https://github.com/Brownster/agent-windows/releases).
+
+#### Basic Installation
 ```powershell
-# Install as Windows service
+# Install as Windows service (no authentication)
 .\windows-agent-collector.exe --agent-id=agent_001 --push.gateway-url=http://pushgateway:9091 install
 
 # Start the service
 sc start windows_agent_collector
 ```
 
-### Basic Usage
+#### Installation with Authentication
 ```powershell
-# Basic usage
+# Install with Push Gateway authentication
+.\windows-agent-collector.exe `
+  --agent-id=agent_001 `
+  --push.gateway-url=http://pushgateway:9091 `
+  --push.username=monitoring_user `
+  --push.password=secure_password `
+  --push.interval=30s `
+  install
+
+# Start the service
+sc start windows_agent_collector
+```
+
+#### Secure Installation (Recommended)
+1. **Create configuration file** (`config.yaml`):
+```yaml
+push_gateway:
+  url: "http://pushgateway.example.com:9091"
+  username: "monitoring_user"
+  password: "secure_password"
+  interval: "30s"
+
+agent:
+  id: "agent_001"
+
+collectors:
+  enabled: ["cpu", "memory", "net", "pagefile"]
+
+log:
+  level: "info"
+```
+
+2. **Set file permissions** (Administrator only):
+```powershell
+icacls config.yaml /inheritance:d
+icacls config.yaml /grant:r "Administrators:(R)"
+icacls config.yaml /remove "Users"
+```
+
+3. **Install and start service**:
+```powershell
+.\windows-agent-collector.exe --config.file=config.yaml install
+sc start windows_agent_collector
+```
+
+### Service Management
+```powershell
+# Check service status
+sc query windows_agent_collector
+
+# Stop service
+sc stop windows_agent_collector
+
+# Restart service
+sc stop windows_agent_collector && sc start windows_agent_collector
+
+# Uninstall service
+sc stop windows_agent_collector
+.\windows-agent-collector.exe uninstall
+```
+
+### Basic Usage (Non-Service)
+```powershell
+# Run directly (for testing)
 .\windows-agent-collector.exe --agent-id=agent_001 --push.gateway-url=http://pushgateway:9091
 
 # With authentication
@@ -60,20 +126,91 @@ sc start windows_agent_collector
 
 ## Configuration
 
-Create a `config.yaml` file (see `config-example.yaml`):
+### Command Line Options
+
+| Flag | Description | Required | Default |
+|------|-------------|----------|---------|
+| `--agent-id` | Unique agent identifier for correlation | ✅ Yes | - |
+| `--push.gateway-url` | Prometheus Push Gateway URL | ✅ Yes | - |
+| `--push.username` | Basic auth username for push gateway | No | - |
+| `--push.password` | Basic auth password for push gateway | No | - |
+| `--push.interval` | Push frequency (e.g., 30s, 1m) | No | 30s |
+| `--push.job-name` | Prometheus job name | No | windows_agent |
+| `--collectors.enabled` | Comma-separated list of collectors | No | cpu,memory,net,pagefile |
+| `--config.file` | Path to YAML configuration file | No | - |
+| `--log.level` | Log level (debug, info, warn, error) | No | info |
+| `--log.format` | Log format (text, json) | No | text |
+
+### Configuration File
+
+Create a `config.yaml` file for more complex configurations:
 
 ```yaml
+# Basic configuration
 push_gateway:
   url: "http://pushgateway.example.com:9091"
   username: "monitoring_user"
   password: "secret_password"
   interval: "30s"
+  job_name: "windows_agent"
+  timeout: "10s"
 
 agent:
-  id: "agent_001"
+  id: "agent_001"  # Must match Chrome extension
 
 collectors:
   enabled: ["cpu", "memory", "net", "pagefile"]
+
+log:
+  level: "info"
+  format: "text"
+  file: "C:\\logs\\agent-collector.log"  # Optional log file
+
+# Advanced service configuration  
+service:
+  name: "windows_agent_collector"
+  display_name: "Windows Agent Collector"
+  description: "Lightweight Windows metrics collector for WebRTC troubleshooting"
+```
+
+### Environment Variables
+
+You can override configuration using environment variables:
+
+```powershell
+$env:AGENT_ID = "agent_001"
+$env:PUSH_GATEWAY_URL = "http://pushgateway:9091"
+$env:PUSH_GATEWAY_USERNAME = "monitoring_user"
+$env:PUSH_GATEWAY_PASSWORD = "secure_password"
+```
+
+### Production Configuration Example
+
+```yaml
+# Production-ready configuration
+push_gateway:
+  url: "https://pushgateway.prod.company.com:9091"  # Use HTTPS
+  username: "${PUSH_GATEWAY_USERNAME}"              # Environment variable
+  password: "${PUSH_GATEWAY_PASSWORD}"              # Environment variable
+  interval: "30s"
+  job_name: "windows_agent_prod"
+  timeout: "15s"
+
+agent:
+  id: "${AGENT_ID}"  # Environment variable
+
+collectors:
+  enabled: ["cpu", "memory", "net", "pagefile"]
+
+log:
+  level: "info"
+  format: "json"  # Structured logging for production
+  file: "C:\\ProgramData\\WindowsAgentCollector\\logs\\agent.log"
+
+service:
+  name: "windows_agent_collector"
+  display_name: "Windows Agent Collector (Production)"
+  description: "Production Windows metrics collector for WebRTC voice quality monitoring"
 ```
 
 ## WebRTC Integration & Correlation
@@ -132,6 +269,66 @@ Install the [WebRTC Chrome Extension](https://github.com/Brownster/agent-webrtc)
 
 ### 3. Configure Grafana
 Create dashboards that query both metric sources using the shared `agent_id` label for unified troubleshooting views.
+
+## Troubleshooting
+
+### Service Installation Issues
+
+#### Access Denied
+```powershell
+# Run PowerShell as Administrator
+# Right-click PowerShell -> "Run as Administrator"
+```
+
+#### Service Won't Start
+```powershell
+# Check Windows Event Log for errors
+Get-EventLog -LogName Application -Source "windows_agent_collector" -EntryType Error -Newest 5
+
+# Test configuration manually first
+.\windows-agent-collector.exe --config.file=config.yaml --log.level=debug
+```
+
+#### Authentication Failures
+```powershell
+# Test Push Gateway connectivity
+curl -u "monitoring_user:secure_password" http://pushgateway:9091/metrics
+
+# Verify credentials in configuration
+.\windows-agent-collector.exe --config.file=config.yaml --log.level=debug
+```
+
+### Service Management
+```powershell
+# Check service status and details
+Get-Service -Name "windows_agent_collector"
+sc qc windows_agent_collector
+
+# View service logs
+Get-EventLog -LogName Application -Source "windows_agent_collector" -Newest 10
+
+# Check service executable path
+(Get-WmiObject win32_service | Where-Object {$_.name -eq "windows_agent_collector"}).PathName
+```
+
+### Configuration Validation
+```powershell
+# Test configuration file syntax
+.\windows-agent-collector.exe --config.file=config.yaml --log.level=debug --help
+
+# Validate Push Gateway connectivity
+Test-NetConnection -ComputerName pushgateway.example.com -Port 9091
+```
+
+### Common Configuration Issues
+
+| Issue | Solution |
+|-------|----------|
+| **Push Gateway unreachable** | Check URL, firewall rules, and network connectivity |
+| **Authentication failed** | Verify username/password, test with curl |
+| **Service crashes on startup** | Check Event Log, validate configuration file |
+| **No metrics appearing** | Verify agent_id matches Chrome extension |
+| **Permission denied** | Run as Administrator, check file permissions |
 
 ## Building from Source
 
