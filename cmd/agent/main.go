@@ -79,8 +79,8 @@ func run(ctx context.Context, args []string) int {
 	app := kingpin.New("windows_agent_collector", "A lightweight Windows metrics collector that pushes to Prometheus Push Gateway.")
 	
 	// Service management commands
-	installCmd := app.Command("install", "Install as Windows service")
-	uninstallCmd := app.Command("uninstall", "Remove Windows service")
+	_ = app.Command("install", "Install as Windows service")
+	_ = app.Command("uninstall", "Remove Windows service")
 
 	var (
 		configFile = app.Flag(
@@ -153,9 +153,9 @@ func run(ctx context.Context, args []string) int {
 	collectors := collector.NewWithFlags(app)
 
 	// Parse configuration and command line arguments
-	configFile := config.ParseConfigFile(args)
-	if configFile != "" {
-		resolver, err := config.NewConfigFileResolver(configFile)
+	configFilePath := config.ParseConfigFile(args)
+	if configFilePath != "" {
+		resolver, err := config.NewConfigFileResolver(configFilePath)
 		if err != nil {
 			//nolint:sloglint // we do not have a logger yet
 			slog.LogAttrs(ctx, slog.LevelError, "Failed to load configuration file",
@@ -217,8 +217,8 @@ func run(ctx context.Context, args []string) int {
 
 	logger.LogAttrs(ctx, slog.LevelDebug, "logging has started")
 
-	if configFile != nil && *configFile != "" {
-		logger.LogAttrs(ctx, slog.LevelInfo, "using configuration file: "+*configFile)
+	if configFilePath != "" {
+		logger.LogAttrs(ctx, slog.LevelInfo, "using configuration file: "+configFilePath)
 	}
 
 	if err = setPriorityWindows(ctx, logger, os.Getpid(), *processPriority); err != nil {
