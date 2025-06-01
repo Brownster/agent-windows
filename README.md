@@ -45,20 +45,25 @@ sc start windows_agent_collector
 #### Secure Installation (Recommended)
 1. **Create configuration file** (`config.yaml`):
 ```yaml
-push_gateway:
-  url: "http://pushgateway.example.com:9091"
+# Push Gateway Configuration
+push:
+  gateway-url: "http://pushgateway.example.com:9091"
   username: "monitoring_user"
   password: "secure_password"
   interval: "30s"
+  job-name: "windows_agent"
 
-agent:
-  id: "agent_001"
+# Agent Configuration
+agent-id: "agent_001"
 
+# Collectors Configuration  
 collectors:
-  enabled: ["cpu", "memory", "net", "pagefile"]
+  enabled: "cpu,memory,net,pagefile"
 
+# Logging Configuration
 log:
   level: "info"
+  format: "text"
 ```
 
 2. **Set file permissions** (Administrator only):
@@ -147,30 +152,29 @@ Create a `config.yaml` file for more complex configurations:
 
 ```yaml
 # Basic configuration
-push_gateway:
-  url: "http://pushgateway.example.com:9091"
+push:
+  gateway-url: "http://pushgateway.example.com:9091"
   username: "monitoring_user"
   password: "secret_password"
   interval: "30s"
-  job_name: "windows_agent"
-  timeout: "10s"
+  job-name: "windows_agent"
 
-agent:
-  id: "agent_001"  # Must match Chrome extension
+# Agent identifier (must match Chrome extension)
+agent-id: "agent_001"
 
+# Enabled collectors
 collectors:
-  enabled: ["cpu", "memory", "net", "pagefile"]
+  enabled: "cpu,memory,net,pagefile"
 
+# Logging configuration
 log:
   level: "info"
   format: "text"
-  file: "C:\\logs\\agent-collector.log"  # Optional log file
 
-# Advanced service configuration  
-service:
-  name: "windows_agent_collector"
-  display_name: "Windows Agent Collector"
-  description: "Lightweight Windows metrics collector for WebRTC troubleshooting"
+# Process configuration
+process:
+  priority: "normal"
+  memory-limit: "0"
 ```
 
 ### Environment Variables
@@ -180,37 +184,37 @@ You can override configuration using environment variables:
 ```powershell
 $env:AGENT_ID = "agent_001"
 $env:PUSH_GATEWAY_URL = "http://pushgateway:9091"
-$env:PUSH_GATEWAY_USERNAME = "monitoring_user"
-$env:PUSH_GATEWAY_PASSWORD = "secure_password"
+$env:PUSH_USERNAME = "monitoring_user"
+$env:PUSH_PASSWORD = "secure_password"
 ```
 
 ### Production Configuration Example
 
 ```yaml
 # Production-ready configuration
-push_gateway:
-  url: "https://pushgateway.prod.company.com:9091"  # Use HTTPS
-  username: "${PUSH_GATEWAY_USERNAME}"              # Environment variable
-  password: "${PUSH_GATEWAY_PASSWORD}"              # Environment variable
+push:
+  gateway-url: "https://pushgateway.prod.company.com:9091"  # Use HTTPS
+  username: "${PUSH_USERNAME}"                               # Environment variable
+  password: "${PUSH_PASSWORD}"                               # Environment variable
   interval: "30s"
-  job_name: "windows_agent_prod"
-  timeout: "15s"
+  job-name: "windows_agent_prod"
 
-agent:
-  id: "${AGENT_ID}"  # Environment variable
+# Agent identifier from environment
+agent-id: "${AGENT_ID}"
 
+# Enabled collectors
 collectors:
-  enabled: ["cpu", "memory", "net", "pagefile"]
+  enabled: "cpu,memory,net,pagefile"
 
+# Structured logging for production
 log:
   level: "info"
-  format: "json"  # Structured logging for production
-  file: "C:\\ProgramData\\WindowsAgentCollector\\logs\\agent.log"
+  format: "json"
 
-service:
-  name: "windows_agent_collector"
-  display_name: "Windows Agent Collector (Production)"
-  description: "Production Windows metrics collector for WebRTC voice quality monitoring"
+# Process configuration
+process:
+  priority: "normal"
+  memory-limit: "0"
 ```
 
 ## WebRTC Integration & Correlation

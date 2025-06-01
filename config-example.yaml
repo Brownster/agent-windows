@@ -1,54 +1,37 @@
-# Windows Agent Collector Configuration
-# Lightweight metrics collector for WebRTC voice quality troubleshooting
+# Windows Agent Collector Configuration Example
+# This file demonstrates the correct YAML structure for configuration
 
 # Push Gateway Configuration
-push_gateway:
-  # Required: URL of the Prometheus Push Gateway
-  url: "http://pushgateway.example.com:9091"
-  
-  # Optional: Basic authentication for push gateway
-  username: "monitoring_user"
+push:
+  gateway-url: "http://pushgateway.example.com:9091"
+  username: "monitoring_user" 
   password: "secret_password"
-  
-  # Optional: How often to push metrics (default: 30s)
   interval: "30s"
-  
-  # Optional: Job name for grouping metrics (default: "windows_agent")
-  job_name: "windows_agent"
+  job-name: "windows_agent"
 
 # Agent Configuration
-agent:
-  # Required: Unique identifier for correlating with WebRTC stats
-  # This should match the agent ID used in your Chrome extension
-  id: "agent_001"
+agent-id: "agent_001"
 
-# Collector Configuration
+# Collectors Configuration
 collectors:
-  # List of collectors to enable
-  # Available: cpu, memory, net, pagefile
-  enabled: ["cpu", "memory", "net", "pagefile"]
-  
-  # Network collector specific settings
-  net:
-    # Optional: Include/exclude network interfaces by regex
-    nic_include: ".+"
-    nic_exclude: ""
-    
-    # Sub-collectors to enable
-    enabled: ["metrics", "nic_info"]
+  enabled: "cpu,memory,net,pagefile"
+
+# Logging Configuration
+log:
+  level: "info"
+  format: "text"
 
 # Process Configuration
 process:
-  # Optional: Process priority (normal, high, low, etc.)
   priority: "normal"
-  
-  # Optional: Memory limit in bytes (50MB default for lightweight operation)
-  memory_limit: 50000000
+  memory-limit: "0"
 
-# Logging Configuration
-logging:
-  # Log level: debug, info, warn, error
-  level: "info"
-  
-  # Log output: stdout, eventlog (Windows Event Log)
-  output: "stdout"
+# Example with environment variables
+# push:
+#   gateway-url: "${PUSH_GATEWAY_URL}"
+#   username: "${PUSH_GATEWAY_USERNAME}"
+#   password: "${PUSH_GATEWAY_PASSWORD}"
+#   interval: "30s"
+#   job-name: "windows_agent"
+# 
+# agent-id: "${AGENT_ID}"
