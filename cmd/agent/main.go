@@ -82,8 +82,8 @@ func run(ctx context.Context, args []string) int {
 	app.Terminate(nil)
 	
 	// Service management commands
-	_ = app.Command("install", "Install as Windows service")
-	_ = app.Command("uninstall", "Remove Windows service")
+	installCmd := app.Command("install", "Install as Windows service")
+	uninstallCmd := app.Command("uninstall", "Remove Windows service")
 
 	var (
 		// Push Gateway Configuration
@@ -172,21 +172,53 @@ func run(ctx context.Context, args []string) int {
 	}
 
 	// Parse command line arguments to get the selected command
-	command, err := app.Parse(args)
-	if err != nil {
-		//nolint:sloglint // we do not have a logger yet
-		slog.LogAttrs(ctx, slog.LevelError, "Failed to parse flags",
-			slog.Any("err", err),
-		)
-		return 1
+	// Handle the case where no command is specified (normal operation)
+	var parsedCommand string
+	var err error
+	
+	// Check if any service commands are specified
+	hasServiceCommand := false
+	for _, arg := range args {
+		if arg == "install" || arg == "uninstall" || arg == "help" {
+			hasServiceCommand = true
+			break
+		}
+	}
+	
+	if hasServiceCommand {
+		parsedCommand, err = app.Parse(args)
+		if err != nil {
+			//nolint:sloglint // we do not have a logger yet
+			slog.LogAttrs(ctx, slog.LevelError, "Failed to parse flags",
+				slog.Any("err", err),
+			)
+			return 1
+		}
+	} else {
+		// No service command, parse flags only
+		_, err = app.Parse(args)
+		if err != nil {
+			//nolint:sloglint // we do not have a logger yet
+			slog.LogAttrs(ctx, slog.LevelError, "Failed to parse flags",
+				slog.Any("err", err),
+			)
+			return 1
+		}
+		parsedCommand = "" // No command for normal operation
 	}
 
 	// Handle service management commands
-	switch command {
-	case "install":
+	switch parsedCommand {
+	case installCmd.FullCommand():
 		return handleServiceInstall(ctx, args)
-	case "uninstall":
+	case uninstallCmd.FullCommand():
 		return handleServiceUninstall(ctx)
+	case "":
+		// No command specified - continue with normal operation
+		break
+	default:
+		// Unknown command - continue with normal operation
+		break
 	}
 
 	// Validate required flags for normal operation
