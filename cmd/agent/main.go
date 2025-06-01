@@ -195,8 +195,10 @@ func run(ctx context.Context, args []string) int {
 			return 1
 		}
 	} else {
-		// No service command, parse flags only
-		_, err = app.Parse(args)
+		// No service command, manually parse flags to avoid kingpin's command requirement
+		// We'll add "help" temporarily to satisfy kingpin, then ignore it
+		tempArgs := append(args, "help")
+		_, err = app.Parse(tempArgs)
 		if err != nil {
 			//nolint:sloglint // we do not have a logger yet
 			slog.LogAttrs(ctx, slog.LevelError, "Failed to parse flags",
@@ -213,10 +215,17 @@ func run(ctx context.Context, args []string) int {
 		return handleServiceInstall(ctx, args)
 	case uninstallCmd.FullCommand():
 		return handleServiceUninstall(ctx)
+	case "help":
+		// Help was already shown by kingpin, just exit
+		return 0
 	case "":
 		// No command specified - continue with normal operation
 		break
 	default:
+		// Check if it's a help command variant
+		if strings.Contains(parsedCommand, "help") {
+			return 0
+		}
 		// Unknown command - continue with normal operation
 		break
 	}
