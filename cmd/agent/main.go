@@ -42,6 +42,8 @@ import (
 	"github.com/Brownster/agent-windows/internal/utils"
 	"github.com/Brownster/agent-windows/pkg/collector"
 	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/svc"
+	"golang.org/x/sys/windows/svc/mgr"
 )
 
 type PushConfig struct {
@@ -75,6 +77,10 @@ func run(ctx context.Context, args []string) int {
 	startTime := time.Now()
 
 	app := kingpin.New("windows_agent_collector", "A lightweight Windows metrics collector that pushes to Prometheus Push Gateway.")
+	
+	// Service management commands
+	installCmd := app.Command("install", "Install as Windows service")
+	uninstallCmd := app.Command("uninstall", "Remove Windows service")
 
 	var (
 		configFile = app.Flag(
@@ -86,7 +92,7 @@ func run(ctx context.Context, args []string) int {
 		pushGatewayURL = app.Flag(
 			"push.gateway-url",
 			"Prometheus Push Gateway URL",
-		).Required().String()
+		).String()
 
 		pushUsername = app.Flag(
 			"push.username",
@@ -112,7 +118,7 @@ func run(ctx context.Context, args []string) int {
 		agentID = app.Flag(
 			"agent-id",
 			"Agent identifier for correlation with WebRTC stats",
-		).Required().String()
+		).String()
 
 		enabledCollectors = app.Flag(
 			"collectors.enabled",
@@ -146,11 +152,56 @@ func run(ctx context.Context, args []string) int {
 	// Initialize collectors before loading and parsing CLI arguments
 	collectors := collector.NewWithFlags(app)
 
-	if err := config.Parse(app, args); err != nil {
+	// Parse configuration and command line arguments
+	configFile := config.ParseConfigFile(args)
+	if configFile != "" {
+		resolver, err := config.NewConfigFileResolver(configFile)
+		if err != nil {
+			//nolint:sloglint // we do not have a logger yet
+			slog.LogAttrs(ctx, slog.LevelError, "Failed to load configuration file",
+				slog.Any("err", err),
+			)
+			return 1
+		}
+
+		if err = resolver.Bind(app, args); err != nil {
+			//nolint:sloglint // we do not have a logger yet
+			slog.LogAttrs(ctx, slog.LevelError, "Failed to bind configuration",
+				slog.Any("err", err),
+			)
+			return 1
+		}
+	}
+
+	// Parse command line arguments to get the selected command
+	parseContext, err := app.Parse(args)
+	if err != nil {
 		//nolint:sloglint // we do not have a logger yet
-		slog.LogAttrs(ctx, slog.LevelError, "Failed to load configuration",
+		slog.LogAttrs(ctx, slog.LevelError, "Failed to parse flags",
 			slog.Any("err", err),
 		)
+		return 1
+	}
+
+	// Handle service management commands
+	if parseContext.SelectedCommand != nil {
+		switch parseContext.SelectedCommand.Model().Name {
+		case "install":
+			return handleServiceInstall(ctx, args)
+		case "uninstall":
+			return handleServiceUninstall(ctx)
+		}
+	}
+
+	// Validate required flags for normal operation
+	if *pushGatewayURL == "" {
+		fmt.Println("Error: --push.gateway-url is required")
+		fmt.Println("Use --help for usage information")
+		return 1
+	}
+	if *agentID == "" {
+		fmt.Println("Error: --agent-id is required")
+		fmt.Println("Use --help for usage information") 
 		return 1
 	}
 
@@ -405,4 +456,135 @@ func expandEnabledCollectors(enabled string) []string {
 	}
 
 	return filtered
+}
+
+// handleServiceInstall installs the Windows Agent Collector as a Windows service
+func handleServiceInstall(ctx context.Context, args []string) int {
+	// Get the current executable path
+	execPath, err := os.Executable()
+	if err != nil {
+		fmt.Printf("Error getting executable path: %v\n", err)
+		return 1
+	}
+
+	// Build service command with all arguments except "install"
+	var serviceArgs []string
+	for _, arg := range args {
+		if arg != "install" {
+			serviceArgs = append(serviceArgs, arg)
+		}
+	}
+
+	// Install the service
+	err = installService(execPath, serviceArgs)
+	if err != nil {
+		fmt.Printf("Error installing service: %v\n", err)
+		return 1
+	}
+
+	fmt.Println("Windows Agent Collector service installed successfully")
+	fmt.Println("To start the service, run: sc start windows_agent_collector")
+	return 0
+}
+
+// handleServiceUninstall removes the Windows Agent Collector service
+func handleServiceUninstall(ctx context.Context) int {
+	err := uninstallService()
+	if err != nil {
+		fmt.Printf("Error uninstalling service: %v\n", err)
+		return 1
+	}
+
+	fmt.Println("Windows Agent Collector service uninstalled successfully")
+	return 0
+}
+
+// installService installs the Windows service
+func installService(execPath string, args []string) error {
+	const serviceName = "windows_agent_collector"
+	const serviceDisplayName = "Windows Agent Collector"
+	const serviceDescription = "Lightweight Windows metrics collector for WebRTC troubleshooting"
+
+	// Build command line with arguments
+	cmdLine := fmt.Sprintf(`"%s"`, execPath)
+	if len(args) > 0 {
+		cmdLine += " " + strings.Join(args, " ")
+	}
+
+	m, err := mgr.Connect()
+	if err != nil {
+		return fmt.Errorf("failed to connect to service manager: %w", err)
+	}
+	defer m.Disconnect()
+
+	// Check if service already exists
+	s, err := m.OpenService(serviceName)
+	if err == nil {
+		s.Close()
+		return fmt.Errorf("service %s already exists", serviceName)
+	}
+
+	// Create the service
+	s, err = m.CreateService(serviceName, cmdLine, mgr.Config{
+		DisplayName:      serviceDisplayName,
+		Description:      serviceDescription,
+		StartType:        mgr.StartAutomatic,
+		ServiceStartName: "",
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create service: %w", err)
+	}
+	defer s.Close()
+
+	return nil
+}
+
+// uninstallService removes the Windows service
+func uninstallService() error {
+	const serviceName = "windows_agent_collector"
+
+	m, err := mgr.Connect()
+	if err != nil {
+		return fmt.Errorf("failed to connect to service manager: %w", err)
+	}
+	defer m.Disconnect()
+
+	s, err := m.OpenService(serviceName)
+	if err != nil {
+		return fmt.Errorf("failed to open service: %w", err)
+	}
+	defer s.Close()
+
+	// Stop the service if it's running
+	status, err := s.Query()
+	if err != nil {
+		return fmt.Errorf("failed to query service status: %w", err)
+	}
+
+	if status.State == svc.Running {
+		_, err = s.Control(svc.Stop)
+		if err != nil {
+			return fmt.Errorf("failed to stop service: %w", err)
+		}
+
+		// Wait for service to stop
+		for {
+			status, err = s.Query()
+			if err != nil {
+				return fmt.Errorf("failed to query service status: %w", err)
+			}
+			if status.State == svc.Stopped {
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+
+	// Delete the service
+	err = s.Delete()
+	if err != nil {
+		return fmt.Errorf("failed to delete service: %w", err)
+	}
+
+	return nil
 }

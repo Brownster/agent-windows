@@ -317,11 +317,17 @@ Get-EventLog -LogName Application -Source "windows_agent_collector" -Newest 10
 
 ### Configuration Validation
 ```powershell
-# Test configuration file syntax
-.\windows-agent-collector.exe --config.file=config.yaml --log.level=debug --help
+# Test configuration file syntax (dry run)
+.\windows-agent-collector.exe --config.file=config.yaml --help
+
+# Test running with debug logging
+.\windows-agent-collector.exe --config.file=config.yaml --log.level=debug
 
 # Validate Push Gateway connectivity
 Test-NetConnection -ComputerName pushgateway.example.com -Port 9091
+
+# Test specific configuration
+.\windows-agent-collector.exe --agent-id=test_001 --push.gateway-url=http://localhost:9091 --log.level=debug
 ```
 
 ### Common Configuration Issues
@@ -333,6 +339,54 @@ Test-NetConnection -ComputerName pushgateway.example.com -Port 9091
 | **Service crashes on startup** | Check Event Log, validate configuration file |
 | **No metrics appearing** | Verify agent_id matches Chrome extension |
 | **Permission denied** | Run as Administrator, check file permissions |
+
+### Working Examples
+
+#### 1. Service Installation with Config File
+```powershell
+# Create config.yaml
+@"
+push:
+  gateway-url: "http://pushgateway:9091"
+  username: "monitoring_user"
+  password: "secure_password"
+  interval: "30s"
+  job-name: "windows_agent"
+
+agent-id: "agent_001"
+
+collectors:
+  enabled: "cpu,memory,net,pagefile"
+
+log:
+  level: "info"
+  format: "text"
+"@ | Out-File -FilePath config.yaml -Encoding UTF8
+
+# Install service
+.\windows-agent-collector.exe --config.file=config.yaml install
+
+# Start service
+sc start windows_agent_collector
+```
+
+#### 2. Service Installation with Command Line
+```powershell
+# Install with command line flags
+.\windows-agent-collector.exe --agent-id=agent_001 --push.gateway-url=http://pushgateway:9091 --push.username=user --push.password=pass install
+
+# Start service
+sc start windows_agent_collector
+```
+
+#### 3. Test Run (Foreground)
+```powershell
+# Test configuration without installing service
+.\windows-agent-collector.exe --agent-id=test_001 --push.gateway-url=http://localhost:9091 --log.level=debug
+
+# Test with config file
+.\windows-agent-collector.exe --config.file=config.yaml --log.level=debug
+```
 
 ## Building from Source
 

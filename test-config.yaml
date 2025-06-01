@@ -1,0 +1,22 @@
+# Test configuration for Windows Agent Collector
+# Use this file for testing the configuration structure
+
+push:
+  gateway-url: "http://localhost:9091"
+  username: "test_user"
+  password: "test_password"
+  interval: "30s"
+  job-name: "windows_agent_test"
+
+agent-id: "test_agent_001"
+
+collectors:
+  enabled: "cpu,memory,net,pagefile"
+
+log:
+  level: "debug"
+  format: "text"
+
+process:
+  priority: "normal"
+  memory-limit: "0"
