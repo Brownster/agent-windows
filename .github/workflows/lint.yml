@@ -93,3 +93,5 @@ jobs:
           # renovate: github=golangci/golangci-lint
           version: v2.1.6
           args: "--max-same-issues=0"
+        env:
+          GOOS: windows
