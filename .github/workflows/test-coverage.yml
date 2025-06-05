@@ -27,6 +27,7 @@ jobs:
       run: go mod download
       
     - name: Run tests with coverage
+      shell: bash
       run: |
         go test -v -coverprofile=coverage.out -covermode=atomic ./...
         
@@ -121,6 +122,7 @@ jobs:
       run: go mod download
       
     - name: Run benchmarks
+      shell: bash
       run: |
         go test -bench=. -benchmem -run=^Benchmark ./... > benchmark.txt
         
