@@ -23,8 +23,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/alecthomas/kingpin/v2"
 	"github.com/Brownster/agent-windows/pkg/collector"
+	"github.com/alecthomas/kingpin/v2"
 	"gopkg.in/yaml.v3"
 )
 
@@ -34,6 +34,14 @@ type configFile struct {
 	Debug struct {
 		Enabled bool `yaml:"enabled"`
 	} `yaml:"debug"`
+	Push struct {
+		GatewayURL string `yaml:"gateway-url"`
+		Username   string `yaml:"username"`
+		Password   string `yaml:"password"`
+		Interval   string `yaml:"interval"`
+		JobName    string `yaml:"job-name"`
+	} `yaml:"push"`
+	AgentID    string `yaml:"agent-id"`
 	Collectors struct {
 		Enabled string `yaml:"enabled"`
 	} `yaml:"collectors"`
